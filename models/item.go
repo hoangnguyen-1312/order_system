@@ -53,7 +53,7 @@ func GetItemsInformation(userID string, conn *pgx.Conn) ([]Item, error) {
 		i := Item{}
 		err = rows.Scan(&i.ID, &i.Title, &i.Price, &i.Notes, &i.SellerID)
 		if err != nil {
-			fmt.Printf("Error scaning item: %v", err)
+			fmt.Printf("Error")
 			continue
 		}
 		items = append(items, i)
@@ -70,10 +70,10 @@ func (i *Item) Update(conn *pgx.Conn) error {
 		i.Price = 0
 	}
 	now := time.Now()
-	_, err := conn.Exec(context.Background(), "UPDATE item SET title=$1, notes=$2, price_in_cents=$3, updated_at=$4 WHERE id=$5", i.Title, i.Notes, i.Price, now, i.ID)
+	_, err := conn.Exec(context.Background(), "UPDATE item SET title=$1, notes=$2, price=$3, updated_at=$4 WHERE id=$5", i.Title, i.Notes, i.Price, now, i.ID)
 
 	if err != nil {
-		fmt.Printf("Error updating item: (%v)", err)
+		fmt.Printf("Error updating")
 		return fmt.Errorf("Error updating item")
 	}
 
@@ -81,7 +81,7 @@ func (i *Item) Update(conn *pgx.Conn) error {
 }
 
 func FindItemById(id uuid.UUID, conn *pgx.Conn) (Item, error) {
-	row := conn.QueryRow(context.Background(), "SELECT title, notes, seller_id, price_in_cents FROM item WHERE id=$1", id)
+	row := conn.QueryRow(context.Background(), "SELECT title, notes, seller_id, price FROM item WHERE id=$1", id)
 	item := Item{
 		ID: id,
 	}

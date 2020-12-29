@@ -80,7 +80,7 @@ func IsTokenValid(tokenString string) (bool, string) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		fmt.Printf("Parsing: %v \n", token)
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok == false {
-			return nil, fmt.Errorf("Token signing method is not valid: %v", token.Header["alg"])
+			return nil, fmt.Errorf("Token signing method is not valid")
 		}
 
 		return tokenSecret, nil
@@ -96,7 +96,6 @@ func IsTokenValid(tokenString string) (bool, string) {
 		userID := claims["user_id"]
 		return true, userID.(string)
 	} else {
-		fmt.Printf("The alg header %v \n", claims["alg"])
 		fmt.Println(err)
 		return false, "uuid.UUID{}"
 	}
