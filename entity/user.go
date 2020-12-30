@@ -51,7 +51,6 @@ func (u *User) PublicUser() interface{} {
 		LastName:  u.LastName,
 	}
 }
-
 func (u *User) Prepare() {
 	u.FirstName = html.EscapeString(strings.TrimSpace(u.FirstName))
 	u.LastName = html.EscapeString(strings.TrimSpace(u.LastName))
@@ -59,7 +58,6 @@ func (u *User) Prepare() {
 	u.CreatedAt = time.Now()
 	u.UpdatedAt = time.Now()
 }
-
 func (u *User) Validate(action string) map[string]string {
 	var errorMessages = make(map[string]string)
 	var err error

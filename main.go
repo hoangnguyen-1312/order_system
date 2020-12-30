@@ -49,26 +49,6 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-//Avoid a large file from loading into memory
-//If the file size is greater than 8MB dont allow it to even load into memory and waste our time.
-func MaxSizeAllowed(n int64) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, n)
-		buff, errRead := c.GetRawData()
-		if errRead != nil {
-			//c.JSON(http.StatusRequestEntityTooLarge,"too large")
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
-				"status":     http.StatusRequestEntityTooLarge,
-				"upload_err": "too large: upload an image less than 8MB",
-			})
-			c.Abort()
-			return
-		}
-		buf := bytes.NewBuffer(buff)
-		c.Request.Body = ioutil.NopCloser(buf)
-	}
-}
-
 func main() {
 
 	dbdriver := os.Getenv("DB_DRIVER")
@@ -106,13 +86,17 @@ func main() {
 
 	//user routes
 	r.POST("/users", users.SaveUser)
-	r.GET("/users", users.GetUsers)
-	r.GET("/users/:user_id", users.GetUser)
+	r.GET("/users", AuthMiddleware(), users.GetUsers)
+	r.GET("/users/:user_id", AuthMiddleware(),users.GetUser)
 
 	//authentication routes
 	r.POST("/login", authenticate.Login)
 	r.POST("/logout", authenticate.Logout)
-	r.POST("/refresh", authenticate.Refresh)
+
+	//authentication activity
+	// r.GET("/userInfor", users.GetCurrentUserInfor)
+	// r.PUT("/updateUserInfor", users.UpdateUserInfor)
+	// r.DELETE("/deleteUser", users.DeleteUser)
 
 	log.Fatal(r.Run(":8888"))
 }
