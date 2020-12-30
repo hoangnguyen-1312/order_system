@@ -92,9 +92,9 @@ func main() {
 	r.POST("/logout", authenticate.Logout)
 
 	//authentication activity
-	// r.GET("/userInfor", users.GetCurrentUserInfor)
-	// r.PUT("/updateUserInfor", users.UpdateUserInfor)
-	// r.DELETE("/deleteUser", users.DeleteUser)
+	r.GET("/profile", users.GetCurrentUserInfor)
+	r.PUT("/update", users.UpdateUserInfor)
+	r.DELETE("/delete/:user_id", users.DeleteUser)
 
 	log.Fatal(r.Run(":8888"))
 }

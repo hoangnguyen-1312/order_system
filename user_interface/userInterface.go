@@ -14,6 +14,8 @@ type UserAppInterface interface {
 	GetUsers() ([]entity.User, error)
 	GetUser(uint64) (*entity.User, error)
 	GetUserByEmailAndPassword(*entity.User) (*entity.User, map[string]string)
+	UpdateUser(*entity.User) (*entity.User, map[string]string)
+	DeleteUser(uint64) error
 }
 
 func (u *userApp) SaveUser(user *entity.User) (*entity.User, map[string]string) {
@@ -30,4 +32,12 @@ func (u *userApp) GetUsers() ([]entity.User, error) {
 
 func (u *userApp) GetUserByEmailAndPassword(user *entity.User) (*entity.User, map[string]string) {
 	return u.us.GetUserByEmailAndPassword(user)
+}
+
+func (u *userApp) UpdateUser(user *entity.User) (*entity.User, map[string]string) {
+	return u.us.UpdateUser(user)
+}
+
+func (u *userApp) DeleteUser(userId uint64) (error) {
+	return u.us.DeleteUser(userId)
 }

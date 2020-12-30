@@ -66,7 +66,6 @@ func (au *Authenticate) Logout(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-	
 	deleteErr := au.rd.DeleteTokens(metadata)
 	if deleteErr != nil {
 		c.JSON(http.StatusUnauthorized, deleteErr.Error())

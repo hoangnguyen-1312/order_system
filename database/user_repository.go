@@ -77,3 +77,28 @@ func (r *UserRepo) GetUserByEmailAndPassword(u *entity.User) (*entity.User, map[
 	}
 	return &user, nil
 }
+
+func (r *UserRepo) UpdateUser(user *entity.User) (*entity.User, map[string]string) {
+	dbErr := map[string]string{}
+	err := r.db.Debug().Save(&user).Error
+	if err != nil {
+		//since our title is unique
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate") {
+			dbErr["unique_title"] = "title already taken"
+			return nil, dbErr
+		}
+		//any other db error
+		dbErr["db_error"] = "database error"
+		return nil, dbErr
+	}
+	return user, nil
+}
+
+func (r *UserRepo) DeleteUser(id uint64) error {
+	var user entity.User
+	err := r.db.Debug().Where("id = ?", id).Delete(&user).Error
+	if err != nil {
+		return errors.New("database error, please try again")
+	}
+	return nil
+}

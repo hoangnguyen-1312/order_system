@@ -92,6 +92,7 @@ func (u *User) Validate(action string) map[string]string {
 				errorMessages["invalid_email"] = "please provide a valid email"
 			}
 		}
+		
 	default:
 		if u.FirstName == "" {
 			errorMessages["firstname_required"] = "first name is required"
