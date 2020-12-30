@@ -54,9 +54,6 @@ func (au *Authenticate) Login(c *gin.Context) {
 	userData := make(map[string]interface{})
 	userData["access_token"] = ts.AccessToken
 	userData["refresh_token"] = ts.RefreshToken
-	userData["id"] = u.ID
-	userData["first_name"] = u.FirstName
-	userData["last_name"] = u.LastName
 	c.JSON(http.StatusOK, userData)
 }
 
