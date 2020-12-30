@@ -1,80 +1,118 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"offersapp/models"
-	"offersapp/routes"
-	"strings"
-
+	"order_system/auth"
+	"order_system/database"
+	"order_system/handler"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v4"
-	"golang.org/x/net/context"
+	"github.com/joho/godotenv"
+	"log"
+	"os"
+	"net/http"
+	"bytes"
+	"io/ioutil"
 )
 
-func main() {
-
-	conn, err := connectDB()
-	if err != nil {
-		return
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("no env gotten")
 	}
-
-	router := gin.Default()
-
-	router.Use(dbMiddleware(*conn))
-
-	usersGroup := router.Group("users")
-	{
-		usersGroup.POST("register", routes.Register)
-		usersGroup.POST("login", routes.Login)
-	}
-
-	itemsGroup := router.Group("items")
-	{
-		itemsGroup.POST("create", authMiddleWare(), routes.Create)
-		itemsGroup.GET("getInfo", authMiddleWare(), routes.GetItemsInformation)
-		itemsGroup.PUT("update", authMiddleWare(), routes.Update)
-	}
-
-	router.Run(":3000")
 }
 
-func connectDB() (c *pgx.Conn, err error) {
-	conn, err := pgx.Connect(context.Background(), "postgresql://postgres:123456@localhost:5432/order_system")
-	if err != nil || conn == nil {
-		fmt.Println("Error connecting to DB")
-		fmt.Println(err.Error())
-	}
-	_ = conn.Ping(context.Background())
-	return conn, err
-}
-
-func dbMiddleware(conn pgx.Conn) gin.HandlerFunc {
+func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set("db", conn)
+		err := auth.TokenValid(c.Request)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status": http.StatusUnauthorized,
+				"error":  err.Error(),
+			})
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }
 
-func authMiddleWare() gin.HandlerFunc {
+func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		bearer := c.Request.Header.Get("Authorization")
-		fmt.Println(bearer)
-		split := strings.Split(bearer, "Bearer ")
-		if len(split) < 2 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated."})
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	}
+}
+
+//Avoid a large file from loading into memory
+//If the file size is greater than 8MB dont allow it to even load into memory and waste our time.
+func MaxSizeAllowed(n int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, n)
+		buff, errRead := c.GetRawData()
+		if errRead != nil {
+			//c.JSON(http.StatusRequestEntityTooLarge,"too large")
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"status":     http.StatusRequestEntityTooLarge,
+				"upload_err": "too large: upload an image less than 8MB",
+			})
 			c.Abort()
 			return
 		}
-		token := split[1]
-		fmt.Printf("Bearer (%v) \n", token)
-		isValid, userID := models.IsTokenValid(token)
-		if isValid == false {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated."})
-			c.Abort()
-		} else {
-			c.Set("user_id", userID)
-			c.Next()
-		}
+		buf := bytes.NewBuffer(buff)
+		c.Request.Body = ioutil.NopCloser(buf)
 	}
+}
+
+func main() {
+
+	dbdriver := os.Getenv("DB_DRIVER")
+	host := os.Getenv("DB_HOST")
+	password := os.Getenv("DB_PASSWORD")
+	user := os.Getenv("DB_USER")
+	dbname := os.Getenv("DB_NAME")
+	port := os.Getenv("DB_PORT")
+
+	redis_host := os.Getenv("REDIS_HOST")
+	redis_port := os.Getenv("REDIS_PORT")
+	redis_password := os.Getenv("REDIS_PASSWORD")
+
+
+	services, err := database.NewRepositories(dbdriver, user, password, port, host, dbname)
+	if err != nil {
+		panic(err)
+	}
+	defer services.Close()
+	services.Automigrate()
+
+	redisService, err := auth.NewRedisDB(redis_host, redis_port, redis_password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tk := auth.NewToken()
+
+
+	users := handler.NewUsers(services.User, redisService.Auth, tk)
+	authenticate := handler.NewAuthenticate(services.User, redisService.Auth, tk)
+
+	r := gin.Default()
+	r.Use(CORSMiddleware())
+
+	//user routes
+	r.POST("/users", users.SaveUser)
+	r.GET("/users", users.GetUsers)
+	r.GET("/users/:user_id", users.GetUser)
+
+	//authentication routes
+	r.POST("/login", authenticate.Login)
+	r.POST("/logout", authenticate.Logout)
+	r.POST("/refresh", authenticate.Refresh)
+
+	log.Fatal(r.Run(":8888"))
 }
